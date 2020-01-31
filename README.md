@@ -1,60 +1,56 @@
-# koa-s3-sign-upload
+# @d2l/koa-s3-sign-upload
 
-Middleware for [Koa 2][] to sign AWS S3 upload requests.
+Middleware for [Koa 2][] to sign AWS S3 upload requests, and designed to work with [react-s3-uploader][].
 
-Specifically, this middleware is designed to work with [react-s3-uploader][]. Credit is given to [@OKNoah][] for [PR #80][] from which this package is derived.
+Credits [@OKNoah][] [@ktonon][].
 
-**Note: Use v2 for compatibility with Koa 1.**
+Forked from https://github.com/ktonon/koa-s3-sign-upload
 
 __Install__
 
 ```shell
-$ npm install -S koa-s3-sign-upload
+$ npm install -S @d2l/koa-s3-sign-upload
 ```
 
 __Usage__
 
 ```js
 const signS3 = require('koa-s3-sign-upload');
+const AWS = require('aws-sdk');
 
 app.use(signS3({
+  // required
+
+  // S3 bucket to use
   bucket: 'MyS3Bucket',
 
-  // optional. Prepends this values to all upload keys
-  keyPrefix: '',
+  // S3 client
+  S3: new AWS.S3(),
 
-  // optional. Prepends a random GUID to the `objectName` query parameter
+  // optional
+
+  // Prepends this value to the object key. Default is no prefix.
+  keyPrefix: 'prefix',
+
+  // RegExp that the object key must match. Default is none.
+  keyRegExp: /must-match-this-prefix\/.*/,
+
+  // Callback function to validate signing requests, for example for more complex validation of the key. Default is none.
+  validateRequest: callback(ctx, params),
+
+  // Prepends a random GUID to the `objectName` query parameter.
   randomizeFilename: true,
 
-  // optional
-  region: 'us-east-1',
+  // Object ACL to set. Default 'private'.
+  ACL: 'public',
 
-  // optional (use for some amazon regions: frankfurt and others)
-  signatureVersion: 'v4',
-
-  // optional
-  headers: { 'Access-Control-Allow-Origin': '*' },
-
-  // this is default
-  ACL: 'private',
-
-  // optional
-  accessKeyId: 'foo',
-
-  // optional
-  secretAccessKey: 'bar',
-
-  // optional. useful for s3-compatible APIs
-  endpoint: 'https://rest.s3alternative.com',
-
-  // optional. default is /s3. useful if you version your API endpoints
+  // Prefix for routes. Default is '/s3'
   prefix: '/v1/s3',
 
-  // optional. exposes GET /s3/uploads/...
-  // which redirects to signed S3 urls
+  // Adds a route that redirects to a signed download URL. Default is false.
   enableRedirect: true,
 
-  // this is default
+  // Sets the Expires header on the object. Default is 60.
   expires: 60
 }));
 ```
@@ -63,8 +59,27 @@ With default parameters, this will expose an endpoint `GET /s3/sign` for signing
 
 * Either `objectName` or `fileName`. If both are provided, `fileName` will be used. This is appended to the `keyPrefix` to form the S3 key. Note that the `randomizeFilename` option will cause the filename to get prepended with a GUID
 * `contentType` will be used to set the mime type of the file once uploaded to S3
+* `contentDistribution` can be one of `auto`, `inline` or `attachment`. This will result in the signed URL including a Content-Distribution header, the value of which is returned in the result. By default this header is not included, but it is strongly recommended to use this options to make your uploads more secure.
 
 If `enableRedirect` is set, this will also provide another endpoint: `GET /s3/uploads/(.*)`, which will create a temporary URL that provides access to the uploaded file (which are uploaded privately by default). The request is then redirected to the URL, so that the image is served to the client.
+
+__Response Format__
+
+The response is designed for use by [react-s3-uploader][], but could be used for other clients.
+
+Example response:
+
+```json
+{
+  "filename": "filename.zip",
+  "key": "some/path/filename.zip",
+  "signedUrl": "https://signed-s3-put-object-url",
+  "publicUrl": "https://signed-s3-get-object-url",
+  "headers": {
+    "Content-Disposition": "attachment; filename=\"filename.zip\"",
+  }
+}
+```
 
 __Access/Secret Keys__
 
@@ -74,7 +89,7 @@ Note: Best practice in EC2/Lambda is to use an IAM instance/execution role, in w
 
 
 [@OKNoah]:https://github.com/OKNoah
+[@ktonon]:https://github.com/ktonon
 [aws-sdk]:https://github.com/aws/aws-sdk-js
 [Koa 2]:http://koajs.com/
-[PR #80]:https://github.com/odysseyscience/react-s3-uploader/pull/80
 [react-s3-uploader]:https://github.com/odysseyscience/react-s3-uploader

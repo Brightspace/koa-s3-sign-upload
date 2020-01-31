@@ -1,6 +1,6 @@
 {
   "name": "@d2l/koa-s3-sign-upload",
-  "version": "3.1.0",
+  "version": "4.0.0",
   "engines": {
     "node": "8.10.0"
   },
@@ -8,12 +8,12 @@
   "main": "index.js",
   "scripts": {
     "lint": "eslint .",
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "posttest": "npm run lint"
+    "test": "mocha",
+    "coverage": "nyc --reporter=lcov npm test"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/ktonon/koa-s3-sign-upload.git"
+    "url": "git+https://github.com/Brightspace/koa-s3-sign-upload.git"
   },
   "keywords": [
     "koa",
@@ -23,14 +23,19 @@
   "author": "Kevin Tonon <kevin@betweenconcepts.com>",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/ktonon/koa-s3-sign-upload/issues"
+    "url": "https://github.com/Brightspace/koa-s3-sign-upload/issues"
   },
-  "homepage": "https://github.com/ktonon/koa-s3-sign-upload#readme",
+  "homepage": "https://github.com/Brightspace/koa-s3-sign-upload#readme",
   "dependencies": {
-    "aws-sdk": "^2.9.0",
     "koa-router": "^7.4.0",
-    "uuid": "^3.3.2",
-    "eslint": "^3.19.0",
-    "eslint-plugin-node": "^4.2.2"
+    "uuid": "^3.3.2"
+  },
+  "devDependencies": {
+    "eslint": "^6.8.0",
+    "eslint-plugin-node": "^11.0.0",
+    "mocha": "^7.0.1",
+    "nyc": "^15.0.0",
+    "should": "^13.2.3",
+    "sinon": "^8.1.1"
   }
 }

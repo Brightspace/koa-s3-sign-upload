@@ -1,0 +1,4 @@
+require: should
+recursive: true
+exit: true
+bail: true

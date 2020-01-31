@@ -1,36 +1,20 @@
-'use strict';
-
 const Router = require('koa-router');
 const uuid = require('uuid');
-const AWS = require('aws-sdk');
+const path = require('path');
 
 module.exports = function S3Router(options) {
   if (!options.bucket) {
-    throw new Error('bucket is required.');
+    throw new Error('bucket is required');
   }
 
-  const s3Options = {};
-  if (options.region) {
-    s3Options.region = options.region;
-  }
-  if (options.signatureVersion) {
-    s3Options.signatureVersion = options.signatureVersion;
-  }
-  if (options.accessKeyId) {
-    s3Options.accessKeyId = options.accessKeyId;
-  }
-  if (options.secretAccessKey) {
-    s3Options.secretAccessKey = options.secretAccessKey;
-  }
-  if (options.endpoint) {
-    s3Options.endpoint = options.endpoint;
+  if (!options.S3) {
+    throw new Error('S3 is required');
   }
 
-  const s3 = options.S3 ? options.S3 : new AWS.S3(s3Options);
   // Promisifier for the getSignedUrl call
   const getSignedUrlAsync = (command, params) => {
     return new Promise((resolve, reject) => {
-      s3.getSignedUrl(command, params, (err, data) => {
+      options.S3.getSignedUrl(command, params, (err, data) => {
         if (err) {
           reject(err);
         }
@@ -49,19 +33,11 @@ module.exports = function S3Router(options) {
      * to GET an upload.
      */
     router.get('/uploads/:key', async function tempRedirect(ctx) {
-      const self = ctx;
-
       const params = {
         Bucket: options.bucket,
         Key: ctx.params.key,
       };
-      try {
-        self.redirect(await getSignedUrlAsync('getObject', params));
-      } catch(err) {
-        console.log(`Error: ${err}.`);
-        self.status = err.status || 500;
-        self.body = err.message || 'Getting signed for the object failed';
-      }
+      ctx.redirect(await getSignedUrlAsync('getObject', params));
     });
   }
 
@@ -83,20 +59,15 @@ module.exports = function S3Router(options) {
     }
     const mimeType = ctx.query.contentType;
 
-    // Set any custom headers
-    if (options.headers) {
-      ctx.set(options.headers);
-    }
-
     const key = options.keyPrefix
       ? `${options.keyPrefix.replace(/\/$/, '')}/${filename}`
       : filename;
 
     if (options.keyRegExp) {
-      const regexp = options.keyRegExp instanceof RegExp 
-        ? options.keyRegExp 
+      const regexp = options.keyRegExp instanceof RegExp
+        ? options.keyRegExp
         : new RegExp(options.keyRegExp);
-      
+
         if (!regexp.test(key)) {
           ctx.throw(400, 'Key does not match the regexp');
         }
@@ -107,24 +78,43 @@ module.exports = function S3Router(options) {
       Key: key,
       Expires: options.expires || 60,
       ContentType: mimeType,
-      ACL: options.ACL || 'private'
+      ACL: options.ACL || 'private',
     };
 
-    try {
-      const url = await getSignedUrlAsync('putObject', params);
-      self.body = {
-        filename: filename,
-        key: key,
-        signedUrl: url,
-      };
-  
-      if (options.enableRedirect) {
-        self.body.publicUrl = `/s3/uploads/${filename}`;
+    const contentDisposition = ctx.query.contentDisposition;
+    let contentDispositionHeader;
+    if (contentDisposition) {
+      let disposition = contentDisposition;
+      if (contentDisposition === 'auto') {
+        if (mimeType.substr(0, 6) === 'image/') {
+          disposition = 'inline';
+        } else {
+          disposition = 'attachment';
+        }
       }
-    } catch(err) {
-      console.log(`Error: ${err}.`);
-      self.body = 'Cannot create S3 signed URL';
-      self.status = 500;
+      contentDispositionHeader = `${disposition}; filename="${path.basename(filename)}"`;
+      params.ContentDisposition = contentDispositionHeader;
+    }
+
+    if (options.validateRequest) {
+      options.validateRequest(ctx, params);
+    }
+
+    const url = await getSignedUrlAsync('putObject', params);
+    self.body = {
+      filename: filename,
+      key: key,
+      signedUrl: url,
+    };
+
+    if (contentDispositionHeader) {
+      self.body.headers = {
+        'Content-Disposition': contentDispositionHeader,
+      };
+    }
+
+    if (options.enableRedirect) {
+      self.body.publicUrl = `/s3/uploads/${filename}`;
     }
   });
 
