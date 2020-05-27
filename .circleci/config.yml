@@ -33,10 +33,9 @@ jobs:
     steps:
       - attach_workspace:
           at: ~/project
-      - run: 
+      - run:
           command: |
-            npm install publish
-            ./node_modules/.bin/publish
+            npx publish
 
 workflows:
   version: 2
