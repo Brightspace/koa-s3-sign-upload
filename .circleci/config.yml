@@ -35,8 +35,7 @@ jobs:
           at: ~/project
       - run:
           command: |
-            npm install -g publish
-            publish
+            npx publish
 
 workflows:
   version: 2
