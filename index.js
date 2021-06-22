@@ -7,12 +7,12 @@ module.exports = function S3Router(options) {
     throw new Error('bucket is required');
   }
 
-  if (!options.S3) {
-    throw new Error('S3 is required');
+  if (!options.S3 && !options.getSignedUrl) {
+    throw new Error('S3 client or a custom getSignedUrl function is required');
   }
 
   // Promisifier for the getSignedUrl call
-  const getSignedUrlAsync = (command, params) => {
+  const getSignedUrlAsync = options.getSignedUrl || ((command, params) => {
     return new Promise((resolve, reject) => {
       options.S3.getSignedUrl(command, params, (err, data) => {
         if (err) {
@@ -21,7 +21,7 @@ module.exports = function S3Router(options) {
         resolve(data);
       });
     });
-  }
+  });
 
   const router = new Router({
     prefix: options.prefix || '/s3'

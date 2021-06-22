@@ -16,12 +16,12 @@ describe('factory', () => {
     }).should.throw('bucket is required');
   });
 
-  it('should throw if no S3', () => {
+  it('should throw if no S3 or custom getSignedUrl function', () => {
     (function wrapper() {
       factory({
         bucket: 'my-bucket',
       });
-    }).should.throw('S3 is required');
+    }).should.throw('S3 client or a custom getSignedUrl function is required');
   });
 
   it('should return routes', () => {
@@ -205,18 +205,23 @@ describe('with valid inputs', () => {
     },
   }];
 
-  testCases.forEach(testCase => it(testCase.description, async () => {
+  const testBody = (testCase, withGetSignedUrl) => async () => {
     const validateRequest = sinon.stub().returns(true);
-    const S3 = {
-      getSignedUrl: (command, params, callback) => {
-        callback(null, 'signed-url');
-      }
-    };
 
     const middleware = factory(Object.assign({
       bucket: 'bucket',
       validateRequest,
-      S3,
+      ...(withGetSignedUrl ? {
+        getSignedUrl: (/* command, params */) => {
+          return 'signed-url';
+        }
+      } : {
+        S3: {
+          getSignedUrl: (command, params, callback) => {
+            callback(null, 'signed-url');
+          }
+        }
+      })
     }, testCase.factoryOptions));
 
     const ctx = {
@@ -265,7 +270,10 @@ describe('with valid inputs', () => {
 
     validateRequest.getCall(0).args[0].should.deepEqual(ctx);
     validateRequest.getCall(0).args[1].should.deepEqual(expectedParams);
-  }));
+  };
+
+  testCases.forEach(testCase => it(`${testCase.description} (with S3 client)`, testBody(testCase, false)));
+  testCases.forEach(testCase => it(`${testCase.description} (with custom getSignedUrl function)`, testBody(testCase, true)));
 
   it('randomizes filename', async () => {
     const middleware = factory({
