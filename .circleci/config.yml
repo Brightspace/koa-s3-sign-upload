@@ -10,7 +10,7 @@ jobs:
 
       - run:
           name: Authenticate with Artifactory
-          command: curl -ks -u$ARTIFACTORY_USER:$ARTIFACTORY_PASS "https://d2lartifacts.artifactoryonline.com/d2lartifacts/api/npm/npm-local/auth/d2l" -o ~/project/.npmrc
+          command: curl -ks -u$ARTIFACTORY_USER:$ARTIFACTORY_PASS "$ARTIFACTORY_NPM_URL" -o ~/project/.npmrc
 
       - restore_cache:
           key: v1-{{ checksum "package.json" }}
@@ -33,6 +33,11 @@ jobs:
     steps:
       - attach_workspace:
           at: ~/project
+
+      - run:
+          name: Authenticate with Artifactory
+          command: curl -ks -u$ARTIFACTORY_USER:$ARTIFACTORY_PASS "$ARTIFACTORY_NPM_URL" -o ~/project/.npmrc
+
       - run:
           command: |
             npx publish
@@ -42,8 +47,10 @@ workflows:
 
   build-and-publish:
     jobs:
-      - build
+      - build:
+          context: ci-read
       - publish:
+          context: ci-write
           requires:
             - build
           filters:
